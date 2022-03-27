@@ -95,7 +95,7 @@ class Device{
         if($currentState == true) $currentState = false;
         else $currentState = true;
         // update state in DB to see changes
-        $update = "UPDATE devices SET do_not_interrupt = 'false' WHERE uid = '$deviceId'";
+        $update = "UPDATE devices SET do_not_interrupt = '$currentState' WHERE uid = '$deviceId'";
         $builder = mysqli_query($con, $update);
         // if user device, return true
         if(!$builder){
@@ -106,9 +106,56 @@ class Device{
         }
     }
 
-    public function addToGroup($deviceId){
+    public function addToGroup($deviceId, $newGroup){
+        $con = $this->con;
+        $currentState = $this->getCurrentDNIState($deviceId);
+        if($currentState == true) $currentState = false;
+        else $currentState = true;
+        // update state in DB to see changes
+        $update = "UPDATE devices SET in_group = '$newGroup' WHERE uid = '$deviceId'";
+        $builderDevices = mysqli_query($con, $update);
+        // if user device, return true
+        if(!$builderDevices){
+            return  "Error";
+        }
+        else{
+            $user = $this->username;
+            $update = "UPDATE groups SET uid = '$deviceId' WHERE user = '$user'";
+            $builderGroups = mysqli_query($con, $update);
+            // if user device, return true
+            if(!$builderGroups){
+                return  "Error";
+            }
+            else{
+                return true;
+            }
+        }
     }
+
     public function removeFromGroup($deviceId){
+         $con = $this->con;
+        $currentState = $this->getCurrentDNIState($deviceId);
+        if($currentState == true) $currentState = false;
+        else $currentState = true;
+        // update state in DB to see changes
+        $update = "UPDATE devices SET in_group = '' WHERE uid = '$deviceId'";
+        $builderDevices = mysqli_query($con, $update);
+        // if user device, return true
+        if(!$builderDevices){
+            return  "Error";
+        }
+        else{
+            $user = $this->username;
+            $update = "UPDATE groups SET uid = '' WHERE user = '$user'";
+            $builderGroups = mysqli_query($con, $update);
+            // if user device, return true
+            if(!$builderGroups){
+                return  "Error";
+            }
+            else{
+                return true;
+            }
+        }
     }
     
     // function to check if device with given uid exists
