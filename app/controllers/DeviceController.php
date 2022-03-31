@@ -1,7 +1,13 @@
 <?php
 
 $root =  dirname(__FILE__, 3);
-include_once($root.'/connection.php');
+include_once('connection.php');
+include_once($root.'/vendor/autoload.php');
+
+$dotenv = Dotenv\Dotenv::createImmutable($root);
+$dotenv->load();
+
+use ReallySimpleJWT\Token;
 
 class Device{
 
@@ -10,20 +16,20 @@ class Device{
     public $username;
 
     public function __construct(){
+        // create sql connection  via mysqli_connect
         $connection = new Connection;
         $this->con = $connection->con();
-        $this->username = $_SESSION['username'];
+        $this->username = $this->getJWTData("username");
+    
     }
 
     public function __destruct(){
+        // close connection to db 
         $this->con->close();
     }
 
     // turn on device
     public function turnOn($deviceId){
-        if(!$this->deviceExists($deviceId)){
-            return "No device found";
-        }
         $username = $_SESSION["username"];
         $con = $this->con;
         // update state in DB to see changes
@@ -40,9 +46,6 @@ class Device{
     
     // turn off device
     public function turnOff($deviceId){
-        if(!$this->deviceExists($deviceId)){
-            return "No device found";
-        }
         $username = $this->username;
         $con = $this->con;
         // update state in DB to see changes
@@ -59,9 +62,6 @@ class Device{
 
     // get currently set color on lamp
     public function getColor($deviceId){
-        if(!$this->deviceExists($deviceId)){
-            return "No device found";
-        }
         $con = $this->con;
         $sql = "SELECT uid, color FROM devices WHERE uid = '$deviceId' LIMIT 1";
         $builder = mysqli_query($con, $sql);
@@ -211,6 +211,26 @@ class Device{
                 return false;
             }
         }
+    }
+
+    // check if token is valid
+    private function validateToken($token){
+        $secret = $_ENV['SECRET'];
+        // this checks if token is valid (not changed, not expired)
+        if( !Token::validate($token, $secret) || 
+            !Token::validateExpiration($token, $secret) ||
+            !Token::validateNotBefore($token, $secret)
+        ) return false;
+
+        return true;
+    }
+
+    private function getJWTData($data){
+        $token = '';
+        $secret = $_ENV['SECRET'];
+        $data = Token::getPayload($token, $secret);
+        print_r($data);
+        die("\n koniec");
     }
 
 }

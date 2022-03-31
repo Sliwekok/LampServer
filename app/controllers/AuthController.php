@@ -1,7 +1,13 @@
 <?php
 
 $root =  dirname(__FILE__, 3);
-include_once($root.'/connection.php');
+include_once('connection.php');
+include_once($root.'/vendor/autoload.php');
+
+$dotenv = Dotenv\Dotenv::createImmutable($root);
+$dotenv->load();
+
+use ReallySimpleJWT\Token;
 
 class Auth{
 
@@ -26,9 +32,7 @@ class Auth{
         if(!$this->passwordMatches($username, $password)){
             return "Password doesn't match";
         }
-        
-        $_SESSION['logged'] = true;
-        $_SESSION['username'] = $username;
+        $jwt = $this->createJWT($username);
         return true;
         
     }
@@ -46,7 +50,7 @@ class Auth{
             return "error while handling request";
         }
         else{
-            return "ok";
+            return $this->createJWT($username);
         }
     }
 
@@ -55,12 +59,11 @@ class Auth{
     // returns: bool
     private function doesUserExist($username){
         $con = $this->con;
-        $sql = "SELECT username FROM users WHERE username LIMIT 1";
+        $sql = "SELECT username FROM users WHERE username='$username' LIMIT 1";
         $builder = mysqli_query($con, $sql);
-
         $amount = mysqli_num_rows($builder);
         // if user exists, return true
-        if($amount = 0){
+        if($amount == 0){
             return false;
         }
         else{
@@ -87,6 +90,19 @@ class Auth{
                 return false;
             }
         }
+    }
+
+    // create JWT token, lifetime: 1 year
+    private function createJWT($username){
+        $payload = [
+            'iat'       => strtotime('now'),    // token create moment
+            'exp'       => strtotime('+1 year'),// token expiration
+            'username'  => $username,           // user connected
+        ];
+
+        $secret = $_ENV['SECRET'];
+        $token = Token::customPayload($payload, $secret);
+        return $token;
     }
 
 }
