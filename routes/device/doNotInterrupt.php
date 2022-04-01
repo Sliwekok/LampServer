@@ -4,11 +4,12 @@
     $root =  dirname(__FILE__, 3);
     include_once($root.'/app/controllers/deviceController.php');
     $device = new Device;
-    if(empty($_GET['deviceId'])){
+    if(empty($_GET['deviceId']) || empty($_GET['token'])){
         die("No data provided");
     }
     $deviceId = $_GET['deviceId'];
-    $msg = $device->doNotInterrupt($deviceId);
+    $token = $_GET['token'];
+    $msg = $device->doNotInterrupt($deviceId, $token);
     echo $msg;
     return;
 ?>

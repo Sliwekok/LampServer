@@ -3,20 +3,21 @@
 $root =  dirname(__FILE__, 3);
 include_once('connection.php');
 include_once($root.'/vendor/autoload.php');
+include_once($root.'/app/services/JWTService.php');
 
 $dotenv = Dotenv\Dotenv::createImmutable($root);
 $dotenv->load();
-
-use ReallySimpleJWT\Token;
 
 class Auth{
 
     // global property of connection to DB
     public $con;
+    public $jwt;
 
     public function __construct(){
         $connection = new Connection;
         $this->con = $connection->con();
+        $this->jwt = new JWT;
     }
 
     public function __destruct(){
@@ -32,8 +33,8 @@ class Auth{
         if(!$this->passwordMatches($username, $password)){
             return "Password doesn't match";
         }
-        $jwt = $this->createJWT($username);
-        return true;
+        $jwt = $this->jwt->createJWT($username);
+        return $jwt;
         
     }
 
@@ -49,9 +50,7 @@ class Auth{
         if(!mysqli_query($con, $sql)){
             return "error while handling request";
         }
-        else{
-            return $this->createJWT($username);
-        }
+        return $this->jwt->createJWT($username);
     }
 
     // function to check if username is taken in DB
@@ -92,18 +91,7 @@ class Auth{
         }
     }
 
-    // create JWT token, lifetime: 1 year
-    private function createJWT($username){
-        $payload = [
-            'iat'       => strtotime('now'),    // token create moment
-            'exp'       => strtotime('+1 year'),// token expiration
-            'username'  => $username,           // user connected
-        ];
 
-        $secret = $_ENV['SECRET'];
-        $token = Token::customPayload($payload, $secret);
-        return $token;
-    }
 
 }
 

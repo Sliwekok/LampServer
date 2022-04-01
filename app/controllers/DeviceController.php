@@ -3,24 +3,22 @@
 $root =  dirname(__FILE__, 3);
 include_once('connection.php');
 include_once($root.'/vendor/autoload.php');
+include_once($root.'/app/services/JWTService.php');
 
 $dotenv = Dotenv\Dotenv::createImmutable($root);
 $dotenv->load();
-
-use ReallySimpleJWT\Token;
 
 class Device{
 
     // global property of connection to DB
     public $con;
-    public $username;
+    public $jwt;
 
     public function __construct(){
         // create sql connection  via mysqli_connect
         $connection = new Connection;
         $this->con = $connection->con();
-        $this->username = $this->getJWTData("username");
-    
+        $this->jwt = new JWT;
     }
 
     public function __destruct(){
@@ -29,8 +27,8 @@ class Device{
     }
 
     // turn on device
-    public function turnOn($deviceId){
-        $username = $_SESSION["username"];
+    public function turnOn($deviceId, $token){
+        $username = $this->jwt->getJWTData($token, "username");
         $con = $this->con;
         // update state in DB to see changes
         $sql = "UPDATE devices SET turned_on = 'true', user_connected = '$username' WHERE uid = '$deviceId'";
@@ -45,7 +43,7 @@ class Device{
     }
     
     // turn off device
-    public function turnOff($deviceId){
+    public function turnOff($deviceId, $token){
         $username = $this->username;
         $con = $this->con;
         // update state in DB to see changes
@@ -61,7 +59,9 @@ class Device{
     }
 
     // get currently set color on lamp
-    public function getColor($deviceId){
+    public function getColor($deviceId, $token){
+        $jwt = $this->jwt;
+        if(!$jwt->checkToken($token)) return "Error with authentication";
         $con = $this->con;
         $sql = "SELECT uid, color FROM devices WHERE uid = '$deviceId' LIMIT 1";
         $builder = mysqli_query($con, $sql);
@@ -72,7 +72,7 @@ class Device{
         return $color;
     }
 
-    public function changeColor($deviceId, $newColor){
+    public function changeColor($deviceId, $newColor, $token){
         if($this->isTurnedOn($deviceId)){
             $this->turnOn($deviceId);
         }
@@ -89,7 +89,7 @@ class Device{
         }
     }
 
-    public function doNotInterrupt($deviceId){
+    public function doNotInterrupt($deviceId, $token){
         $con = $this->con;
         $currentState = $this->getCurrentDNIState($deviceId);
         if($currentState == true) $currentState = false;
@@ -106,7 +106,7 @@ class Device{
         }
     }
 
-    public function addToGroup($deviceId, $newGroup){
+    public function addToGroup($deviceId, $newGroup, $token){
         $con = $this->con;
         $currentState = $this->getCurrentDNIState($deviceId);
         if($currentState == true) $currentState = false;
@@ -132,7 +132,7 @@ class Device{
         }
     }
 
-    public function removeFromGroup($deviceId){
+    public function removeFromGroup($deviceId, $token){
          $con = $this->con;
         $currentState = $this->getCurrentDNIState($deviceId);
         if($currentState == true) $currentState = false;
@@ -161,7 +161,7 @@ class Device{
     // function to check if device with given uid exists
     // params: deviceId
     // returns: bool
-    private function deviceExists($deviceId){
+    private function deviceExists($deviceId, $token){
         $con = $this->con;
         $sql = "SELECT uid FROM devices WHERE uid = '$deviceId' LIMIT 1";
         $builder = mysqli_query($con, $sql);
@@ -177,7 +177,7 @@ class Device{
 
     // check if device is turned on, if not - turn it on
     // params: deviceId
-    private function isTurnedOn($deviceId){
+    private function isTurnedOn($deviceId, $token){
         $con = $this->con;
         $sql = "SELECT uid, turned_on FROM devices WHERE uid = '$deviceId' LIMIT 1";
         $builder = mysqli_query($con, $sql);
@@ -196,7 +196,7 @@ class Device{
 
     // check if device has turned on Do Not Interrupt mode
     // params: deviceId
-    private function getCurrentDNIState($deviceId){
+    private function getCurrentDNIState($deviceId, $token){
         $con = $this->con;
         $sql = "SELECT uid, do_not_interrupt FROM devices WHERE uid = '$deviceId' LIMIT 1";
         $builder = mysqli_query($con, $sql);
@@ -211,26 +211,6 @@ class Device{
                 return false;
             }
         }
-    }
-
-    // check if token is valid
-    private function validateToken($token){
-        $secret = $_ENV['SECRET'];
-        // this checks if token is valid (not changed, not expired)
-        if( !Token::validate($token, $secret) || 
-            !Token::validateExpiration($token, $secret) ||
-            !Token::validateNotBefore($token, $secret)
-        ) return false;
-
-        return true;
-    }
-
-    private function getJWTData($data){
-        $token = '';
-        $secret = $_ENV['SECRET'];
-        $data = Token::getPayload($token, $secret);
-        print_r($data);
-        die("\n koniec");
     }
 
 }
